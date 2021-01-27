@@ -50,12 +50,13 @@ Cypress.Commands.add('getToken', (msisdn, entity, failOnStatusCode = true) => {
     })
 })
 
-function BearerRequests(url, method, bToken, body, failOnStatus) {
+function BearerRequests(url, method, bToken, body, failOnStatus, qs = {}) {
     return cy.request({
         failOnStatusCode: failOnStatus,
         url: url,
         method: method, 
         body: body,
+        qs: qs,
         'auth': {
             'bearer': bToken
         }
@@ -128,17 +129,17 @@ Cypress.Commands.add('adminRevoke', (bearerToken, token, entity, failOnStatus = 
         }, failOnStatus)
 })
 
-Cypress.Commands.add('adminListToken', (bearerToken, failOnStatus = true) => {
+Cypress.Commands.add('adminListToken', (bearerToken, failOnStatus = true, qs = {}) => {
     return BearerRequests('/caas/v1/admin/token/list', 'GET',
-        bearerToken, {}, failOnStatus)
+        bearerToken, {}, failOnStatus, qs)
 })
 
 
 // Admin account related commands
-Cypress.Commands.add('adminListAcct', (bearerToken, queryString = '', failOnStatus = true) => {
+Cypress.Commands.add('adminListAcct', (bearerToken, failOnStatus = true, qs = {}) => {
     // this should really be fixed to /admin/account/list
-    return BearerRequests('/caas/v1/admin/account/list' + queryString, 'GET',
-        bearerToken, {}, failOnStatus)
+    return BearerRequests('/caas/v1/admin/account/list', 'GET',
+        bearerToken, {}, failOnStatus, qs)
 })
 
 Cypress.Commands.add('adminAddAcct', 
@@ -161,23 +162,23 @@ Cypress.Commands.add('adminUpdateAcct',
 )
 
 // Admin SCEF/location related commands
-Cypress.Commands.add('adminListSub', (failOnStatus = true) => {
+Cypress.Commands.add('adminListSub', (bearerToken, failOnStatus = true, qs={}) => {
     return BearerRequests(`/caas/v1/admin/location/subscription/list`, 'GET', 
+        bearerToken, {}, failOnStatus, qs)
+})
+
+Cypress.Commands.add('adminListMec', (bearerToken, failOnStatus = true) => {
+    return BearerRequests(`/caas/v1/admin/location/mec/list`, 'GET', 
         bearerToken, {}, failOnStatus)
 })
 
-Cypress.Commands.add('adminListMec', (failOnStatus = true) => {
-    return BearerRequests(`/caas/v1/admin/location/map/list`, 'GET', 
-        bearerToken, {}, failOnStatus)
-})
-
-Cypress.Commands.add('adminDeleteMec', (mec, failOnStatus = true) => {
-    return BearerRequests(`/caas/v1/admin/location/map/delete`, 'POST', 
+Cypress.Commands.add('adminDeleteMec', (bearerToken, mec, failOnStatus = true) => {
+    return BearerRequests(`/caas/v1/admin/location/mec/delete`, 'POST', 
         bearerToken, {mec}, failOnStatus)
 })
 
-Cypress.Commands.add('adminUpdateMec', (mec, cell, ta, failOnStatus = true) => {
-    return BearerRequests(`/caas/v1/admin/location/map/delete`, 'POST', 
-        bearerToken, {mec, cell, ta}, failOnStatus)
+Cypress.Commands.add('adminUpdateMec', (bearerToken, mecList, failOnStatus = true) => {
+    return BearerRequests(`/caas/v1/admin/location/mec/update`, 'POST', 
+        bearerToken, mecList, failOnStatus)
 })
 

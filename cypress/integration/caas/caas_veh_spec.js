@@ -10,12 +10,12 @@ describe('for a veh entity', () => {
         }
     })
 
-    describe('the create token endpoint', () => {
+    describe.only('the create token endpoint', () => {
         
         const INVALID_MSI = '2144213242'
         const EXPECTED_FLDS = ['expires', 'issued', 'mec', 'requested', 'token']
         let revokedToken
-        beforeEach(()=> {
+        before(()=> {
             // reset database
             cy.resetDB()
         })
