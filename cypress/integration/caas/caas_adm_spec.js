@@ -1,4 +1,3 @@
-
 import { REGEX_TABLE, SEED } from "../../support/const"
 
 describe('for a admin entity', () => {
@@ -256,8 +255,8 @@ describe('for a admin entity', () => {
         it('return OK for listing account info', () => {
             cy.adminListAcct(bearerToken, '', false).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(response).to.have.property('body')
-                expect(Object.keys(response.body).length).to.equal(initialCount)
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length).to.equal(initialCount)
             })
         })
 
@@ -274,23 +273,27 @@ describe('for a admin entity', () => {
             cy.adminListAcct(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
                 // should contain all the SEED accoutns and the 3 added in this block
-                expect(Object.keys(response.body).length)
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length)
                     .to.equal(initialCount + 3)
             })
         })
 
         it('return OK for listing account info with filters', () => {
-            cy.adminListAcct(bearerToken, false, {'entity':'admin'}).then((response) => {
+            cy.adminListAcct(bearerToken, false, {'entity': 'admin'}).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(Object.keys(response.body).length).to.equal(2)
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length).to.equal(2)
             })
-            cy.adminListAcct(bearerToken, false, {'org':'verizon'}).then((response) => {
+            cy.adminListAcct(bearerToken, false, {'org': 'verizon'}).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(Object.keys(response.body).length).to.equal(3)
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length).to.equal(3)
             })
-            cy.adminListAcct(bearerToken, false, {'msisdn':SEED.ADM[0]}).then((response) => {
+            cy.adminListAcct(bearerToken, false, {'msisdn': SEED.ADM[0]}).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(Object.keys(response.body).length).to.equal(1)
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length).to.equal(1)
             })
         })
 
@@ -314,10 +317,11 @@ describe('for a admin entity', () => {
             // check if the test accounts were updated
             cy.adminListAcct(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('accounts')
                 for (const msisdn in testAccounts) {
-                    expect(response.body).to.have.property(msisdn)
-                    expect(response.body.msisdn).property('org').to.equal('sentaca')
-                    expect(response.body.msisdn).property('entity').to.equal('admin')
+                    expect(response.body.accounts).to.have.property(msisdn)
+                    expect(response.body[msisdn]).property('org').to.equal('sentaca')
+                    expect(response.body[msisdn]).property('entity').to.equal('admin')
                 }
             })
         })
@@ -375,30 +379,30 @@ describe('for a admin entity', () => {
         it('return OK for listing mec mapping', () => {
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('mecs')
                 // the keys of the body should contain all the SEED MEC locations
                 // {'194.0.0.1': {'cell':[], 'ta': []}}
-                expect(response).to.have.all.keys(...SEED.MEC)
+                expect(response.body.mecs).to.have.all.keys(...SEED.MEC)
             })
         })
 
         it('return bad request for malformed json', () => {
             // try both updating and adding entries to the mec mapping in a list
             let badEntry = {...UPDATE_ENTRY, cell: '1231241'}
-            cy.adminListMec(bearerToken, false)
             cy.adminUpdateMec(bearerToken, badEntry, false).its('status').should('equal', 400)
         })
 
         it('return OK for updating mec mapping', () => {
             // try both updating and adding entries to the mec mapping in a list
             let entries = [UPDATE_ENTRY, NEW_ENTRIES]
-            cy.adminListMec(bearerToken, false)
             cy.adminUpdateMec(bearerToken, entries, false).its('status').should('equal', 200)
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('mecs')
                 for (const entry of entries) {
-                    expect(response).property('body').property(entry.mec)
+                    expect(response.body.mecs).property(entry)
                         .property('cell').to.include('123214')
-                    expect(response).property('body').property(entry.mec)
+                    expect(response.body.mecs).property(entry)
                         .property('ta').to.include('4324234')
                 }
             })
@@ -410,14 +414,16 @@ describe('for a admin entity', () => {
 
         it('return OK for removing mec mapping', () => {
             cy.adminDeleteMec(bearerToken, SEED.MEC[0], false).its('status').should('equal', 204)
+            
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(response).property('body').to.not.have.property(SEED.MEC[0])
+                expect(response).property('body').to.have.property('mecs')
+                expect(response.body.mecs).to.not.have.property(SEED.MEC[0])
             })
         })
     })
 
-    describe.only('the admin token endpoints', () => {
+    describe('the admin token endpoints', () => {
         let bearerToken
         let tokens = {'veh': '', 'sw': ''} 
         const TEST_ENTRIES = {'veh': SEED.VEH[0], 'sw': SEED.SW[0]} 
@@ -440,7 +446,7 @@ describe('for a admin entity', () => {
             }
         })
 
-        it.only('return OK for adding token', () => {
+        it('return OK for adding token', () => {
             // add tokens to entries and check response body
             for (const entity in TEST_ENTRIES) {
                 cy.adminAddToken(bearerToken, TEST_ENTRIES[entity], entity, false).then((response) => {
@@ -455,9 +461,8 @@ describe('for a admin entity', () => {
             // there should be three tokens that show up here now
             cy.adminListToken(bearerToken, false).then((response)=> {
                 expect(response).property('status').to.equal(200)
-                expect(response).to.have.property('body')
-                
-                //expect(Object.keys(response.body).length).to.eq(3)
+                expect(response).property('body').to.have.property('tokens')
+                expect(Object.keys(response.body.tokens).length).to.eq(3)
             })
 
             // check DB values
@@ -501,13 +506,13 @@ describe('for a admin entity', () => {
         it('return ok for listing token by filters', () => {
             cy.adminListToken(bearerToken, false, {'msisdn':SEED.SW[0]}).then((response)=> {
                 expect(response).property('status').to.equal(200)
-                expect(response).to.have.property('body')
-                expect(Object.keys(response.body).length).to.eq(1)
+                expect(response).property('body').to.have.property('tokens')
+                expect(Object.keys(response.body.tokens).length).to.eq(1)
             })
             cy.adminListToken(bearerToken, false, {'mec':SEED.MEC[0]}).then((response)=> {
                 expect(response).property('status').to.equal(200)
-                expect(response).to.have.property('body')
-                expect(Object.keys(response.body).length).to.eq(1)
+                expect(response).property('body').to.have.property('tokens')
+                expect(Object.keys(response.body.tokens).length).to.eq(1)
             })
         })
 
@@ -520,14 +525,17 @@ describe('for a admin entity', () => {
             cy.adminAddToken(bearerToken, SEED.VEH[1], 'veh', false)
             // list should return both values
             cy.adminListSub(bearerToken, false).then((response) => {
-                expectation(response).property('status').to.equal(200)
-                expectation(response).property('status').to.have.property(SEED.VEH[0])
-                expectation(response).property('status').to.have.property(SEED.VEH[1])
+                expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('subscriptions')
+                expect(response.body.subscriptions).to.have.property(SEED.VEH[0])
+                expect(response.body.subscriptions).to.have.property(SEED.VEH[1])
             })
             // filtering by msisdn should return one value
             cy.adminListSub(bearerToken, false, {'msisdn': SEED.VEH[0]}).then((response) => {
-                expectation(response).property('status').to.equal(200)
-                expectation(response).property('status').to.have.property(SEED.VEH[0])
+                expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('subscriptions')
+                expect(response.body.subscriptions).to.have.property(SEED.VEH[0])
+                expect(response.body.subscriptions).to.have.property(SEED.VEH[1])
             })
         })
 
