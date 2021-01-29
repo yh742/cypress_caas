@@ -10,7 +10,7 @@ describe('for a veh entity', () => {
         }
     })
 
-    describe.only('the create token endpoint', () => {
+    describe('the create token endpoint', () => {
         
         const INVALID_MSI = '2144213242'
         const EXPECTED_FLDS = ['expires', 'issued', 'mec', 'requested', 'token']
@@ -117,9 +117,6 @@ describe('for a veh entity', () => {
         const NEW_MSI = '2144213242'
 
         before(()=> {
-            if (!SEED.VEH || SEED.VEH.length >= 2 || !SEED.MEC || SEED.MEC <= 0) {
-                this.skip()
-            }
             cy.resetDB()
             cy.getToken(SEED.VEH[0], 'veh').its('body.token').then((t) => bToken = t)
         })
@@ -152,12 +149,15 @@ describe('for a veh entity', () => {
         })
 
         it('return unauthorized for updating mec mapping', () => {
-            cy.adminUpdateMec(bToken, SEED.MEC[0], ['123214'], [], false)
-                .its('status').should('equal', 401)
+            cy.adminUpdateMec(bToken, [{
+                'mec': '192.168.0.1',
+                'cell': ['123214'], 
+                'ta': ['4324234'],
+                }], false).its('status').should('equal', 401)
         })
 
         it('return unauthorized for removing mec mapping', () => {
-            cy.adminDeleteMap(bToken, SEED.MEC[0], false).its('status').should('equal', 401)
+            cy.adminDeleteMec(bToken, SEED.MEC[0], false).its('status').should('equal', 401)
         })
 
         it('return unauthorized for deleting account', () => {
@@ -172,7 +172,7 @@ describe('for a veh entity', () => {
     })
 
     // non of this should be available for VEH clients
-    describe('the sw/admin endpoints', () => {
+    describe.only('the sw/admin endpoints', () => {
 
         let bToken
         const ENTITYID = '1234'
@@ -182,7 +182,7 @@ describe('for a veh entity', () => {
         })
 
         it('return unauthorized for listing tokens', () => {
-            cy.adminListToken(bearerToken, false)
+            cy.adminListToken(bToken, false)
                 .its('status').should('equal', 401)
         })
 

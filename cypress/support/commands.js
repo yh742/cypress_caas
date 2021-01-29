@@ -137,7 +137,6 @@ Cypress.Commands.add('adminListToken', (bearerToken, failOnStatus = true, qs = {
 
 // Admin account related commands
 Cypress.Commands.add('adminListAcct', (bearerToken, failOnStatus = true, qs = {}) => {
-    // this should really be fixed to /admin/account/list
     return BearerRequests('/caas/v1/admin/account/list', 'GET',
         bearerToken, {}, failOnStatus, qs)
 })

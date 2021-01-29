@@ -94,44 +94,47 @@ describe('for a admin entity', () => {
         const ENTITYID = '1234'
         // bearer token is SW entity
         let bearerToken
+        let assignedMEC
         before(()=> {
             cy.resetDB()
             // assign all the tokens we need here
             cy.getToken(SEED.SW[0], 'sw').its('body.token').then((t) => tokenMap.sw = t)
             cy.getToken(SEED.ADM[0], 'admin').its('body.token').then((t) => {
                 tokenMap.admin = t
-                bearerToken = t
+                bearerToken = tokenMap.admin
             })
-            cy.getToken(SEED.VEH[0], 'veh').its('body.token').then((t) => tokenMap.veh = t)
+            cy.getToken(SEED.VEH[0], 'veh').its('body').then((b) => {
+                tokenMap.veh = b.token
+                assignedMEC = b.mec
+            })
         })
 
         it('return not found for mapping token <-> entityid with invalid json fields', () => {
-
             //  wrong mec 
             cy.mapEntity(bearerToken, tokenMap.veh, 'veh', ENTITYID, 
-                SEED.MEC[1], false).its('status').should('equal', 404)
+                '192.0.1.1', false).its('status').should('equal', 404)
 
             // mismatch token and entity type
             for (const entity in tokenMap) {
+                let badEntity = entity == "veh"? "sw": entity == "sw"? "admin": "veh"
                 cy.mapEntity(bearerToken, tokenMap[entity], 
-                    entity == "veh"? "sw": entity == "sw"? "admin": "veh", 
-                    ENTITYID, SEED.MEC[0], false).its('status').should('equal', 404)
+                    badEntity, ENTITYID, badEntity == 'veh'? assignedMEC: '', false).its('status').should('equal', 404)
             }
         })
 
-        it('return success or conflict based on if entityid mapped', () => {
-            
+        it.only('return success or conflict based on if entityid mapped', () => {
+            cy.visit('/showdb')
             // check this for all 3 entity types
             for (const entity in tokenMap) {
                 cy.mapEntity(bearerToken, tokenMap[entity], entity, ENTITYID, 
-                    SEED.MEC[0], false).its('status').should('equal', 200)
+                    entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 200)
             }
 
             // if we try to map another entity, 409 should be thrown
             // and entity/entityid should be returned
             for (const entity in tokenMap) {
                 cy.mapEntity(bearerToken, tokenMap[entity], entity, '4567', 
-                    SEED.MEC[0], false).should((response)=> {
+                    entity == 'veh'? assignedMEC: '', false).should((response)=> {
                         expect(response.status).to.equal(409)
                         expect(response.body.entityid).to.equal(ENTITYID)
                         // should only return entity/entityid, no token fields
@@ -142,53 +145,54 @@ describe('for a admin entity', () => {
 
         it('return failure for validating invalid token fields', () => {
             // invalid token case
-            cy.validateToken(bearerToken, 'invalid', entity, 
-                ENTITYID, SEED.MEC[0], false).its('status').should('equal', 401)
+            cy.validateToken(bearerToken, 'invalid', 'veh', 
+                ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
             // wrong mec case
             cy.validateToken(bearerToken, vehToken, 'veh', 
-                ENTITYID, SEED.MEC[2], false).its('status').should('equal', 401)
+                ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false).its('status').should('equal', 401)
 
             for (const entity in tokenMap) {
                 // mismatched token and entity 
                 cy.validateToken(bearerToken, tokenMap[entity], 
                     entity == "veh"? "sw": entity == "sw"? "admin": "veh",
-                    ENTITYID, SEED.MEC[0], false).its('status').should('equal', 401)
+                    ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
                 // wrong entityid 
                 cy.validateToken(bearerToken, tokenMap[entity], entity, 
-                    '2345', SEED.MEC[0], false).its('status').should('equal', 401)
+                    '2345', entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
             }
         })
 
         it('return success for validating valid token/entityid', () => {
             for (const entity in tokenMap) {
                 cy.validateToken(bearerToken, tokenMap[entity], entity,  
-                    ENTITYID, SEED.MEC[0], false).its('status').should('equal', 200)
+                    ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 200)
             }
         })
 
         it('return not found for deleting entities with invalid json fields', () => {
             // invalid token case
-            cy.deleteEntity(bearerToken, 'invalid', entity, 
-                ENTITYID, SEED.MEC[0], false).its('status').should('equal', 404)
+            cy.deleteEntity(bearerToken, 'invalid', 'veh', 
+                ENTITYID, assignedMEC, false).its('status').should('equal', 404)
             // wrong mec case
             cy.deleteEntity(bearerToken, vehToken, 'veh', 
-                ENTITYID, SEED.MEC[2], false).its('status').should('equal', 404)
+                ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false)
+                .its('status').should('equal', 404)
 
             for (const entity in tokenMap) {
                 // mismatched token and entity 
                 cy.deleteEntity(bearerToken, tokenMap[entity], 
                     entity == "veh"? "sw": entity == "sw"? "admin": "veh",
-                    ENTITYID, SEED.MEC[0], false).its('status').should('equal', 404)
+                    ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 404)
                 // wrong entityid 
                 cy.deleteEntity(bearerToken, tokenMap[entity], entity, 
-                    '2345', SEED.MEC[0], false).its('status').should('equal', 404)
+                    '2345', entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 404)
             }
         })
 
         it('return success for deleting entityid', () => {
             for (const entity in tokenMap) {
                 cy.deleteEntity(bearerToken, tokenMap[entity], entity, ENTITYID, 
-                    SEED.MEC[0], false).its('status').should('equal', 204)
+                    entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 204)
             }
         })
     })
