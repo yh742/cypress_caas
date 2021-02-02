@@ -118,7 +118,7 @@ describe('for a sw entity', () => {
             }
         })
 
-        it.only('return success or conflict based on if entityid mapped', () => {
+        it('return success or conflict based on if entityid mapped', () => {
             cy.visit('/showdb')
             // check this for all 3 entity types
             for (const entity in tokenMap) {
@@ -142,19 +142,19 @@ describe('for a sw entity', () => {
         it('return failure for validating invalid token fields', () => {
             // invalid token case
             cy.validateToken(bearerToken, 'invalid', 'veh', 
-                ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
+                ENTITYID, assignedMEC, false).its('status').should('equal', 401)
             // wrong mec case
-            cy.validateToken(bearerToken, vehToken, 'veh', 
+            cy.validateToken(bearerToken, tokenMap['veh'], 'veh', 
                 ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false).its('status').should('equal', 401)
 
             for (const entity in tokenMap) {
                 // mismatched token and entity 
                 cy.validateToken(bearerToken, tokenMap[entity], 
                     entity == "veh"? "sw": entity == "sw"? "admin": "veh",
-                    ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
+                    ENTITYID, entity == 'veh'? assignedMEC: SEED.MEC[0], false).its('status').should('equal', 401)
                 // wrong entityid 
                 cy.validateToken(bearerToken, tokenMap[entity], entity, 
-                    '2345', entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
+                    '2345', entity == 'veh'? assignedMEC: SEED.MEC[0], false).its('status').should('equal', 401)
             }
         })
 
@@ -170,7 +170,7 @@ describe('for a sw entity', () => {
             cy.deleteEntity(bearerToken, 'invalid', 'veh', 
                 ENTITYID, assignedMEC, false).its('status').should('equal', 404)
             // wrong mec case
-            cy.deleteEntity(bearerToken, vehToken, 'veh', 
+            cy.deleteEntity(bearerToken, tokenMap['veh'], 'veh', 
                 ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false)
                 .its('status').should('equal', 404)
 
@@ -247,7 +247,7 @@ describe('for a sw entity', () => {
         })
 
         it('return unauthorized  for listing tokens', () => {
-            cy.adminListToken(bearerToken, false)
+            cy.adminListToken(bToken, false)
                 .its('status').should('equal', 401)
         })
 
@@ -279,12 +279,15 @@ describe('for a sw entity', () => {
         })
 
         it('return unauthorized for updating mec mapping', () => {
-            cy.adminUpdateMec(bToken, SEED.MEC[0], ['123214'], [], false)
-                .its('status').should('equal', 401)
+            cy.adminUpdateMec(bToken, [{
+                'mec': '192.168.0.1',
+                'cell': ['123214'], 
+                'ta': ['4324234'],
+                }], false).its('status').should('equal', 401)
         })
 
         it('return unauthorized for removing mec mapping', () => {
-            cy.adminDeleteMap(bToken, SEED.MEC[0], false).its('status').should('equal', 401)
+            cy.adminDeleteMec(bToken, SEED.MEC[0], false).its('status').should('equal', 401)
         })
 
         it('return unauthorized for deleting account', () => {

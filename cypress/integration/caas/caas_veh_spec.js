@@ -172,7 +172,7 @@ describe('for a veh entity', () => {
     })
 
     // non of this should be available for VEH clients
-    describe.only('the sw/admin endpoints', () => {
+    describe('the sw/admin endpoints', () => {
 
         let bToken
         const ENTITYID = '1234'
