@@ -122,7 +122,7 @@ describe('for a admin entity', () => {
             }
         })
 
-        it.only('return success or conflict based on if entityid mapped', () => {
+        it('return success or conflict based on if entityid mapped', () => {
             cy.visit('/showdb')
             // check this for all 3 entity types
             for (const entity in tokenMap) {
@@ -146,9 +146,9 @@ describe('for a admin entity', () => {
         it('return failure for validating invalid token fields', () => {
             // invalid token case
             cy.validateToken(bearerToken, 'invalid', 'veh', 
-                ENTITYID, entity == 'veh'? assignedMEC: '', false).its('status').should('equal', 401)
+                ENTITYID, assignedMEC, false).its('status').should('equal', 401)
             // wrong mec case
-            cy.validateToken(bearerToken, vehToken, 'veh', 
+            cy.validateToken(bearerToken, tokenMap['veh'], 'veh', 
                 ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false).its('status').should('equal', 401)
 
             for (const entity in tokenMap) {
@@ -174,7 +174,7 @@ describe('for a admin entity', () => {
             cy.deleteEntity(bearerToken, 'invalid', 'veh', 
                 ENTITYID, assignedMEC, false).its('status').should('equal', 404)
             // wrong mec case
-            cy.deleteEntity(bearerToken, vehToken, 'veh', 
+            cy.deleteEntity(bearerToken, tokenMap['veh'], 'veh', 
                 ENTITYID, assignedMEC == SEED.MEC[0]? SEED.MEC[1]: SEED.MEC[0], false)
                 .its('status').should('equal', 404)
 
@@ -202,8 +202,7 @@ describe('for a admin entity', () => {
 
         let tokenMap = {
             'veh': '',
-            'admin': '',
-            'sw': ''
+            'sw': '',
         }
 
         // bearer token is SW entity
@@ -324,8 +323,8 @@ describe('for a admin entity', () => {
                 expect(response).property('body').to.have.property('accounts')
                 for (const msisdn in testAccounts) {
                     expect(response.body.accounts).to.have.property(msisdn)
-                    expect(response.body[msisdn]).property('org').to.equal('sentaca')
-                    expect(response.body[msisdn]).property('entity').to.equal('admin')
+                    expect(response.body.accounts[msisdn]).property('organization').to.equal('sentaca')
+                    expect(response.body.accounts[msisdn]).property('entity').to.equal('admin')
                 }
             })
         })
@@ -351,12 +350,19 @@ describe('for a admin entity', () => {
                 .its('status').should('equal', 409)
         })
 
-        // test were updated to admin/sentaca
+        // // test were updated to admin/sentaca
         it('return no content for deleting accounts', () => {
             for (const msisdn in testAccounts) {
                 cy.adminDelAcct(bearerToken, msisdn, 'admin', 'sentaca', false)
                 .its('status').should('equal', 204)
             }
+            cy.adminListAcct(bearerToken, false).then((response) => {
+                expect(response).property('status').to.equal(200)
+                // should contain all the SEED accoutns and the 3 added in this block
+                expect(response).property('body').to.have.property('accounts')
+                expect(Object.keys(response.body.accounts).length)
+                    .to.equal(initialCount)
+            })
         })
     })
 
@@ -380,6 +386,12 @@ describe('for a admin entity', () => {
             'ta': ['4324234'],
         }
 
+        const OVERWRITE_ENTRY = {
+            'mec': SEED.MEC[1],
+            'cell': [], 
+            'ta': [],
+        }
+
         it('return OK for listing mec mapping', () => {
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
@@ -393,22 +405,34 @@ describe('for a admin entity', () => {
         it('return bad request for malformed json', () => {
             // try both updating and adding entries to the mec mapping in a list
             let badEntry = {...UPDATE_ENTRY, cell: '1231241'}
-            cy.adminUpdateMec(bearerToken, badEntry, false).its('status').should('equal', 400)
+            cy.adminUpdateMec(bearerToken, 'append', badEntry, false).its('status').should('equal', 400)
         })
 
         it('return OK for updating mec mapping', () => {
             // try both updating and adding entries to the mec mapping in a list
-            let entries = [UPDATE_ENTRY, NEW_ENTRIES]
-            cy.adminUpdateMec(bearerToken, entries, false).its('status').should('equal', 200)
+            let entries = [NEW_ENTRIES, UPDATE_ENTRY]
+            cy.adminUpdateMec(bearerToken, 'append', entries, false).its('status').should('equal', 200)
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
                 expect(response).property('body').to.have.property('mecs')
                 for (const entry of entries) {
-                    expect(response.body.mecs).property(entry)
+                    expect(response.body.mecs).property(entry.mec)
                         .property('cell').to.include('123214')
-                    expect(response.body.mecs).property(entry)
+                    expect(response.body.mecs).property(entry.mec)
                         .property('ta').to.include('4324234')
                 }
+            })
+        })
+
+        it('return OK for overwritng mec mapping', () => {
+            cy.adminUpdateMec(bearerToken, 'overwrite', [OVERWRITE_ENTRY], false).its('status').should('equal', 200)
+            cy.adminListMec(bearerToken, false).then((response) => {
+                expect(response).property('status').to.equal(200)
+                expect(response).property('body').to.have.property('mecs')
+                expect(response.body.mecs).property(OVERWRITE_ENTRY.mec)
+                    .property('cell').to.have.lengthOf(0)
+                expect(response.body.mecs).property(OVERWRITE_ENTRY.mec)
+                    .property('ta').to.have.lengthOf(0)
             })
         })
 
@@ -441,10 +465,8 @@ describe('for a admin entity', () => {
             cy.adminListToken(bearerToken, false).its('status').should('equal', 200)
         })
 
-        it('return not found for mismatch token/entity', () => {
-            for (const entity of TEST_ENTRIES) {
-                cy.adminAddToken(bearerToken, TEST_ENTRIES[entity], entity == 'sw'? 'veh': 'sw', false)
-                    .its('status').should('equal', 404)
+        it('return not found for adding mismatch token/entity', () => {
+            for (const entity in TEST_ENTRIES) {
                 cy.adminAddToken(bearerToken, TEST_ENTRIES[entity], entity == 'sw'? 'veh': 'sw', false)
                     .its('status').should('equal', 404)
             }
@@ -479,7 +501,7 @@ describe('for a admin entity', () => {
         })
 
         it('return OK for adding tokens again after initial token generation', () => {
-            let lastToken
+            let lastToken = tokens['veh']
             // add tokens to entries and check response body
             for (const entity in TEST_ENTRIES) {
                 cy.adminAddToken(bearerToken, TEST_ENTRIES[entity], entity, false).then((response) => {
@@ -490,7 +512,6 @@ describe('for a admin entity', () => {
                     // for veh tokens should be a new one, else token should stay the same 
                     if (entity == 'veh') {
                         expect(response.body.token).to.not.equal(tokens[entity])
-                        lastToken = response.body.token
                     } else {
                         expect(response.body.token).to.equal(tokens[entity])
                     }
@@ -539,7 +560,7 @@ describe('for a admin entity', () => {
                 expect(response).property('status').to.equal(200)
                 expect(response).property('body').to.have.property('subscriptions')
                 expect(response.body.subscriptions).to.have.property(SEED.VEH[0])
-                expect(response.body.subscriptions).to.have.property(SEED.VEH[1])
+                expect(response.body.subscriptions).to.not.have.property(SEED.VEH[1])
             })
         })
 

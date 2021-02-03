@@ -90,6 +90,7 @@ describe('for a sw entity', () => {
         const ENTITYID = '1234'
         // bearer token is SW entity
         let bearerToken
+        // assigned mec for VEH entity
         let assignedMEC
         before(()=> {
             cy.resetDB()
@@ -199,7 +200,6 @@ describe('for a sw entity', () => {
         let tokenMap = {
             'veh': '',
             'admin': '',
-            'sw': ''
         }
 
         // bearer token is SW entity

@@ -176,8 +176,11 @@ Cypress.Commands.add('adminDeleteMec', (bearerToken, mec, failOnStatus = true) =
         bearerToken, {mec}, failOnStatus)
 })
 
-Cypress.Commands.add('adminUpdateMec', (bearerToken, mecList, failOnStatus = true) => {
+Cypress.Commands.add('adminUpdateMec', (bearerToken, mode, mecList, failOnStatus = true) => {
     return BearerRequests(`/caas/v1/admin/location/mec/update`, 'POST', 
-        bearerToken, mecList, failOnStatus)
+        bearerToken, {
+            entries: mecList,
+            mode: mode,
+        }, failOnStatus)
 })
 
