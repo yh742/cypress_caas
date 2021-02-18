@@ -14,7 +14,9 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
-import './commands'
+import './caas_cmd'
+import './cgw_cmd'
+import './scef_cmd'
 
 // Alternatively you can use CommonJS syntax:
 // require('./commands')

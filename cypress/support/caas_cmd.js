@@ -38,6 +38,20 @@ Cypress.Commands.add("resetDB", () => {
     return cy.request('/test/resetdb')
 })
 
+Cypress.Commands.add('getTokenHeader', (header, entity, failOnStatusCode = true) => {
+    return cy.request({
+        failOnStatusCode: failOnStatusCode,
+        url: '/caas/v1/token',
+        method: "POST",
+        headers: {
+            'X-Forwarded-Client-Cert': header,
+        },
+        body: {
+            entity: entity,
+        }
+    })
+})
+
 Cypress.Commands.add('getToken', (msisdn, entity, failOnStatusCode = true) => {
     return cy.request({
         failOnStatusCode: failOnStatusCode,
@@ -176,11 +190,8 @@ Cypress.Commands.add('adminDeleteMec', (bearerToken, mec, failOnStatus = true) =
         bearerToken, {mec}, failOnStatus)
 })
 
-Cypress.Commands.add('adminUpdateMec', (bearerToken, mode, mecList, failOnStatus = true) => {
-    return BearerRequests(`/caas/v1/admin/location/mec/update`, 'POST', 
-        bearerToken, {
-            entries: mecList,
-            mode: mode,
-        }, failOnStatus)
+Cypress.Commands.add('adminAddMec', (bearerToken, mecList, failOnStatus = true) => {
+    return BearerRequests(`/caas/v1/admin/location/mec/add`, 'POST', 
+        bearerToken, mecList, failOnStatus)
 })
 

@@ -369,9 +369,13 @@ describe('for a admin entity', () => {
     describe('the admin mec mapping endpoints', () => {
 
         let bearerToken
+        let assignedMEC
         before(()=> {
             cy.resetDB()
             cy.getToken(SEED.ADM[0], 'admin').its('body.token').then((t) => bearerToken = t)
+            cy.getToken(SEED.VEH[0], 'veh').its('body').then((b) => {
+                assignedMEC = b.mec
+            })
         })
 
         const NEW_ENTRIES = {
@@ -382,13 +386,13 @@ describe('for a admin entity', () => {
 
         const UPDATE_ENTRY = {
             'mec': SEED.MEC[0],
-            'cell': ['123214'], 
-            'ta': ['4324234'],
+            'cell': ['123215'], 
+            'ta': ['4324235'],
         }
 
         const OVERWRITE_ENTRY = {
-            'mec': SEED.MEC[1],
-            'cell': [], 
+            'mec': '192.168.0.2',
+            'cell': ['123214'], 
             'ta': [],
         }
 
@@ -405,35 +409,22 @@ describe('for a admin entity', () => {
         it('return bad request for malformed json', () => {
             // try both updating and adding entries to the mec mapping in a list
             let badEntry = {...UPDATE_ENTRY, cell: '1231241'}
-            cy.adminUpdateMec(bearerToken, 'append', badEntry, false).its('status').should('equal', 400)
+            cy.adminAddMec(bearerToken, [badEntry], false).its('status').should('equal', 400)
         })
 
-        it('return OK for updating mec mapping', () => {
-            // try both updating and adding entries to the mec mapping in a list
+        it('return OK for adding mec mapping', () => {
+            // try adding new entries to the mec
             let entries = [NEW_ENTRIES, UPDATE_ENTRY]
-            cy.adminUpdateMec(bearerToken, 'append', entries, false).its('status').should('equal', 200)
+            cy.adminAddMec(bearerToken, entries, false).its('status').should('equal', 200)
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
-                expect(response).property('body').to.have.property('mecs')
-                for (const entry of entries) {
-                    expect(response.body.mecs).property(entry.mec)
-                        .property('cell').to.include('123214')
-                    expect(response.body.mecs).property(entry.mec)
-                        .property('ta').to.include('4324234')
-                }
             })
         })
 
-        it('return OK for overwritng mec mapping', () => {
-            cy.adminUpdateMec(bearerToken, 'overwrite', [OVERWRITE_ENTRY], false).its('status').should('equal', 200)
-            cy.adminListMec(bearerToken, false).then((response) => {
-                expect(response).property('status').to.equal(200)
-                expect(response).property('body').to.have.property('mecs')
-                expect(response.body.mecs).property(OVERWRITE_ENTRY.mec)
-                    .property('cell').to.have.lengthOf(0)
-                expect(response.body.mecs).property(OVERWRITE_ENTRY.mec)
-                    .property('ta').to.have.lengthOf(0)
-            })
+        it('return conflict for adding existing mec/TA mapping', () => {
+            // try adding existing cell entry to a new MEC, this should fail
+            let entries = [OVERWRITE_ENTRY]
+            cy.adminAddMec(bearerToken, entries, false).its('status').should('equal', 409)
         })
 
         it('return not found for removing non-existing mec', () => {
@@ -441,13 +432,17 @@ describe('for a admin entity', () => {
         })
 
         it('return OK for removing mec mapping', () => {
-            cy.adminDeleteMec(bearerToken, SEED.MEC[0], false).its('status').should('equal', 204)
+            cy.adminDeleteMec(bearerToken, NEW_ENTRIES.mec, false).its('status').should('equal', 204)
             
             cy.adminListMec(bearerToken, false).then((response) => {
                 expect(response).property('status').to.equal(200)
                 expect(response).property('body').to.have.property('mecs')
-                expect(response.body.mecs).to.not.have.property(SEED.MEC[0])
+                expect(response.body.mecs).to.not.have.property(NEW_ENTRIES.mec)
             })
+        })
+
+        it('return conflict for removing mec with veh assigned', () => {
+            cy.adminDeleteMec(bearerToken, assignedMEC, false).its('status').should('equal', 409)
         })
     })
 
@@ -465,10 +460,11 @@ describe('for a admin entity', () => {
             cy.adminListToken(bearerToken, false).its('status').should('equal', 200)
         })
 
-        it('return not found for adding mismatch token/entity', () => {
+        it('return unauthorized for adding mismatch token/entity', () => {
+            // 401 vs 404?
             for (const entity in TEST_ENTRIES) {
                 cy.adminAddToken(bearerToken, TEST_ENTRIES[entity], entity == 'sw'? 'veh': 'sw', false)
-                    .its('status').should('equal', 404)
+                    .its('status').should('equal', 401)
             }
         })
 

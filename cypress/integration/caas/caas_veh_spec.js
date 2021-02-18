@@ -20,12 +20,25 @@ describe('for a veh entity', () => {
             cy.resetDB()
         })
 
-        it('returns unauthorized access as invalid entity', () => {
+        it.only('returns unauthorized access as invalid entity', () => {
             cy.getToken(SEED.VEH[0], 'sw', false).its('status').should('equal', 401)
+            cy.getToken('', 'sw', false).its('status').should('equal', 401)
         })
         
         it('returns unauthorized access for invalid user', () => {
             cy.getToken(INVALID_MSI, 'VEH', false).its('status').should('equal', 401)
+        })
+
+        it.only('get a token using certificate (e.g. http header)', () => {
+            const HEADER = `Hash=c290036e09db2ff7061dfc91e732c277f83c5b3ac6afff1ed7c981ac9fb5e494;Subject="CN=${SEED.VEH[1]}"`
+            const HEADER2 = `By=http://frontend.lyft.com;Hash=468ed33be74eee6556d90c0149c1309e9ba61d6425303443c0748a02dd8de688;` + 
+                `Subject="/C=US/ST=CA/L=San Francisco/OU=Lyft/CN=${SEED.VEH[2]}";URI=http://testclient.lyft.com;DNS=lyft.com;DNS=www.lyft.com`
+            cy.getTokenHeader(HEADER, 'veh', false).then((response) => {
+                    expect(response.status).to.equal(200)
+            })
+            cy.getTokenHeader(HEADER2, 'veh', false).then((response) => {
+                expect(response.status).to.equal(200)
+        })
         })
 
         it('issues a token for valid client', () => {
@@ -148,8 +161,8 @@ describe('for a veh entity', () => {
             cy.adminListMec(bToken, false).its('status').should('equal', 401)
         })
 
-        it('return unauthorized for updating mec mapping', () => {
-            cy.adminUpdateMec(bToken, [{
+        it('return unauthorized for adding mec mapping', () => {
+            cy.adminAddMec(bToken, [{
                 'mec': '192.168.0.1',
                 'cell': ['123214'], 
                 'ta': ['4324234'],

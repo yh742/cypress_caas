@@ -278,8 +278,8 @@ describe('for a sw entity', () => {
             cy.adminListMec(bToken, false).its('status').should('equal', 401)
         })
 
-        it('return unauthorized for updating mec mapping', () => {
-            cy.adminUpdateMec(bToken, [{
+        it('return unauthorized for adding mec mapping', () => {
+            cy.adminAddMec(bToken, [{
                 'mec': '192.168.0.1',
                 'cell': ['123214'], 
                 'ta': ['4324234'],
