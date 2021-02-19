@@ -227,7 +227,7 @@ describe('for CAAS', () => {
             })
             cy.getToken(SEED.ADM[0], 'admin').its('body').then((body) => {
                 bearerToken = body.token
-                cy.adminAddAcct(bearerToken, SEED.EXP_VEH, 'veh', 'verizon')
+                // cy.adminAddAcct(bearerToken, SEED.EXP_VEH, 'veh', 'verizon')
             })
         })
 
@@ -243,7 +243,7 @@ describe('for CAAS', () => {
             })
         })
 
-        it.only('disocnnects using a re-authenticate when grabbing a new token', ()=> {
+        it('disocnnects using a re-authenticate when grabbing a new token', ()=> {
             // get token again to trigger reauthenticate
             cy.getToken(SEED.VEH[0], 'veh').its('body').then(() => {
                 // check that caas has revoke token due to reauthentication
@@ -267,7 +267,7 @@ describe('for CAAS', () => {
             })
         })
 
-        it.only('no disconnections when only cell tower changes', ()=> {
+        it('no disconnections when only cell tower changes', ()=> {
             cy.adminListMec(bearerToken, false).then((response) => {
                 // need to find a new cell tower not assigned to current MEC
                 const randInt = Math.floor(Math.random() * Math.floor(response.body.mecs[assignedMEC].cell.length))
@@ -292,7 +292,7 @@ describe('for CAAS', () => {
             })
         })
 
-        it.only('disconnects using a handover when mec change occurs', ()=> {
+        it('disconnects using a handover when mec change occurs', ()=> {
             cy.adminListMec(bearerToken, false).then((response) => {
                 // need to find a new cell tower not assigned to current MEC
                 const newMEC = SEED.MEC.filter(mec => mec != assignedMEC)[0]
@@ -328,29 +328,26 @@ describe('for CAAS', () => {
             })
         })
 
-        // TODO: maybe assign a special token with very short expiration time?
         it('disocnnects when token expires', ()=> {
             // get token again to trigger reauthenticate
-            cy.getToken(SEED.EXP_VEH, 'veh').its('body').then((body) => {
-                cy.cgwSetMEC(body.mec)
-                cy.cgwMapToken('veh', ENTITYID, body.token)
+            cy.expireToken(SEED.VEH[0]).then(() => {
                 // cy.wait(6000)
                 // // check that caas has revoke token due to reauthentication
-                // cy.visit('/showdb')
-                // cy.contains(currentToken).parent().children().eq(4)
-                //     .invoke('text').should('equal', 'Reauthenticate')
+                cy.visit('/showdb')
+                cy.contains(currentToken).parent().children().eq(4)
+                    .invoke('text').should('equal', 'MaximumConnectTime')
 
-                // //check that the old token is wiped from cache
-                // cy.cgwValidateToken(
-                //     'veh',
-                //     ENTITYID,
-                //     currentToken,
-                //     false,
-                // ).its('status').should('equal', 403)
+                // check that the old token is wiped from cache
+                cy.cgwValidateToken(
+                    'veh',
+                    ENTITYID,
+                    currentToken,
+                    false,
+                ).its('status').should('equal', 403)
                 cy.cgwGetRequests().then((response)=>{
                     let reqs = response.body.filter(req => Object.keys(req) == "/cgw/v1/disconnect")
                     expect(reqs).to.have.lengthOf(1)
-                    expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(160)
+                    expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(169)
                 })
             })
         })

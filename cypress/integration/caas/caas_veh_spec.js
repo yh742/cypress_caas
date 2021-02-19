@@ -14,13 +14,13 @@ describe('for a veh entity', () => {
         
         const INVALID_MSI = '2144213242'
         const EXPECTED_FLDS = ['expires', 'issued', 'mec', 'requested', 'token']
-        let revokedToken
+        let currentToken
         before(()=> {
             // reset database
             cy.resetDB()
         })
 
-        it.only('returns unauthorized access as invalid entity', () => {
+        it('returns unauthorized access as invalid entity', () => {
             cy.getToken(SEED.VEH[0], 'sw', false).its('status').should('equal', 401)
             cy.getToken('', 'sw', false).its('status').should('equal', 401)
         })
@@ -29,7 +29,7 @@ describe('for a veh entity', () => {
             cy.getToken(INVALID_MSI, 'VEH', false).its('status').should('equal', 401)
         })
 
-        it.only('get a token using certificate (e.g. http header)', () => {
+        it('get a token using certificate (e.g. http header)', () => {
             const HEADER = `Hash=c290036e09db2ff7061dfc91e732c277f83c5b3ac6afff1ed7c981ac9fb5e494;Subject="CN=${SEED.VEH[1]}"`
             const HEADER2 = `By=http://frontend.lyft.com;Hash=468ed33be74eee6556d90c0149c1309e9ba61d6425303443c0748a02dd8de688;` + 
                 `Subject="/C=US/ST=CA/L=San Francisco/OU=Lyft/CN=${SEED.VEH[2]}";URI=http://testclient.lyft.com;DNS=lyft.com;DNS=www.lyft.com`
@@ -51,33 +51,34 @@ describe('for a veh entity', () => {
 
                 // check expiry date is a later time
                 expect(Date.parse(response.body.expires)).to.be.greaterThan(Date.now())
-                revokedToken = response.body.token
+                currentToken = response.body.token
 
                 // check subscription id exists on /showdb
                 cy.visit('/showdb')
-                cy.get('tr:has(td)').should('have.lengthOf', 1)
-                cy.get('tr>td:nth-child(4)').invoke('text').should('match', REGEX_TABLE['subscriptionID'])
+                cy.contains(currentToken).parent().children().eq(3)
+                    .invoke('text').should('match', REGEX_TABLE['subscriptionID'])
 
             })
         })
 
         it('issues another new token if a valid client tries to reauthenticate', () => {
             // reauthenticate and check if first token is revoked
+            let lastToken = currentToken
             cy.getToken(SEED.VEH[0], 'veh').then((response) => {
                 for (const prop of EXPECTED_FLDS) {
                     expect(response.body).property(prop).to.match(REGEX_TABLE[prop])
                 }
-                expect(response.body).property('token').to.not.equal(revokedToken)
+                expect(response.body).property('token').to.not.equal(lastToken)
+                currentToken = response.body.token
                 cy.visit('/showdb')
                 // the first token should have a subscription ID
-                cy.get('tbody:first>tr>td:nth-child(4)').invoke('text')
-                    .should('match', REGEX_TABLE['subscriptionID'])
+                cy.contains(currentToken).parent().children().eq(3)
+                    .invoke('text').should('match', REGEX_TABLE['subscriptionID'])
                 // the original token should be revoked with reason code 'reauthenticate'
-                cy.contains(revokedToken).parent().children().eq(4)
+                cy.contains(lastToken).parent().children().eq(4)
                     .invoke('text').should('equal', 'Reauthenticate')
             })
         })
-
     })
 
     describe('the refresh token endpoint', () => {

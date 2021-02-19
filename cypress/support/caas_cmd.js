@@ -38,6 +38,16 @@ Cypress.Commands.add("resetDB", () => {
     return cy.request('/test/resetdb')
 })
 
+Cypress.Commands.add('expireToken', (msisdn, failOnStatusCode = true) => {
+    return cy.request({
+        failOnStatusCode: failOnStatusCode,
+        url: '/caas/v1/token/expire',
+        qs: {
+            msisdn,
+        },
+    })
+})
+
 Cypress.Commands.add('getTokenHeader', (header, entity, failOnStatusCode = true) => {
     return cy.request({
         failOnStatusCode: failOnStatusCode,

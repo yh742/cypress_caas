@@ -22,7 +22,6 @@ export const SEED = {
     SW: ['9999'],
     VEH: ['17814140001', '18008001111', '19009001111'],
     MEC: ['132.197.249.120', '194.0.0.2', '194.0.0.3', '194.0.0.4'],
-    EXP_VEH: '123456789',
 }
 
     // Created a http://verizon.sentacaconsulting.com/test/resetdb
