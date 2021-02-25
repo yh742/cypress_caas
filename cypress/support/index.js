@@ -17,6 +17,8 @@
 import './caas_cmd'
 import './cgw_cmd'
 import './scef_cmd'
+import './vzmode_cmd'
+import './mqtt_cmd'
 
 // Alternatively you can use CommonJS syntax:
 // require('./commands')

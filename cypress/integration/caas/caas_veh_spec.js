@@ -93,10 +93,15 @@ describe('for a veh entity', () => {
                     issued: Date.parse(body.issued),
                     expires: Date.parse(body.expires),
                 }
+                cy.visit('/showdb')
+                cy.contains(body.token).parent().children().eq(3).invoke('text').then((text) => {
+                    initResponse.subID = text
+                })
+                console.log(initResponse)
             })
         })
 
-        it('can refresh previous token', () => {
+        it.only('can refresh previous token', () => {
             cy.refreshToken(initResponse.token).then((response) => {
                 // check response and json body
                 expect(response.status).to.eq(200)
@@ -115,6 +120,8 @@ describe('for a veh entity', () => {
                 cy.visit('/showdb')
                 cy.contains(response.body.token).parent().
                     children().eq(3).invoke('text').should('match', REGEX_TABLE['subscriptionID'])
+                cy.contains(response.body.token).parent().
+                    children().eq(3).invoke('text').should('not.equal', initResponse.subID)
             })
         })
 

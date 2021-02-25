@@ -1,4 +1,21 @@
-import { REGEX_TABLE, SEED } from "../../support/const"
+import { CGW_URL, REGEX_TABLE, SEED } from "../../support/const"
+
+
+// make sure resets to the actual location of the cgw instance
+function reset() {
+    // change the mec to the cgw location
+    cy.resetDB()
+    let bearerToken
+    cy.getToken(SEED.ADM[0], 'admin').its('body').then((body) => {
+        bearerToken = body.token
+        
+        cy.adminDeleteMec(bearerToken, SEED.MEC[0], false).its('status').should('equal', 204)
+        cy.adminAddMec(bearerToken, [{
+            'mec': CGW_URL,
+            'cell': ['311-480-770300', '311-480-770301', '311-480-770302', '311-480-770303', '311-480-770304', '311-480-770305', '311-480-770306'], 
+        }], false).its('status').should('equal', 200)
+    })
+}
 
 describe('for VZMODE', () => {
 
@@ -14,7 +31,7 @@ describe('for VZMODE', () => {
         let tokenMap = {}
         const ENTITYID = '1234'
         before(()=>{
-            cy.resetDB()
+            reset()
             cy.cgwFlush()
             cy.getToken(SEED.SW[0], 'sw').its('body').then((body) => {
                 tokenMap.sw = body.token
@@ -70,7 +87,7 @@ describe('for VZMODE', () => {
         let tokenMap = {}
         const ENTITYID = '1234'
         before(()=>{
-            cy.resetDB()
+            reset()
             cy.cgwFlush()
             cy.getToken(SEED.SW[0], 'sw').its('body').then((body) => {
                 tokenMap.sw = body.token
@@ -130,7 +147,7 @@ describe('for VZMODE', () => {
         const IDLE = 152
 
         before(()=>{
-            cy.resetDB()
+            reset()
             cy.cgwFlush()
             cy.getToken(SEED.SW[0], 'sw').its('body').then((body) => {
                 cy.cgwSetToken(body.token)
@@ -153,7 +170,7 @@ describe('for VZMODE', () => {
                 .its('status').should('equal', 404)
         })
 
-        it('returns OK for disconnecting due to deregistration', ()=> {
+        it.only('returns OK for disconnecting due to deregistration', ()=> {
             cy.cgwDisconnect('veh', ENTITYID, DEREGISTRATION)
                 .its('status').should('equal', 200)
             // entityid should show be empty since its disassociated
@@ -176,11 +193,12 @@ describe('for VZMODE', () => {
 })
 
 describe('for CAAS', () => {
+
     describe("the cgw refresh endpoint", () => {
         const ENTITYID = '1234'
         let currentToken
         before(()=>{
-            cy.resetDB()
+            reset()
             cy.cgwFlush()
             cy.getToken(SEED.SW[0], 'sw').its('body').then((body) => {
                 cy.cgwSetToken(body.token)
@@ -193,6 +211,7 @@ describe('for CAAS', () => {
         })
 
         it('should issue a refresh call to the cgw', ()=> {
+            console.log(currentToken)
             cy.refreshToken(currentToken).then((response) => {
                 // check response and json body
                 expect(response.status).to.eq(200)
@@ -220,26 +239,25 @@ describe('for CAAS', () => {
 
         let bearerToken
         before(()=> {
-            cy.resetDB()
+            reset()
             cy.cgwFlush()
             cy.getToken(SEED.SW[0], 'sw').its('body').then((body) => {
                 cy.cgwSetToken(body.token)
             })
             cy.getToken(SEED.ADM[0], 'admin').its('body').then((body) => {
                 bearerToken = body.token
-                // cy.adminAddAcct(bearerToken, SEED.EXP_VEH, 'veh', 'verizon')
             })
         })
 
         let currentToken
         let assignedMEC
         beforeEach(()=> {
-            cy.cgwClearRequests()
             cy.getToken(SEED.VEH[0], 'veh').its('body').then((body) => {
                 currentToken = body.token
                 assignedMEC = body.mec
                 cy.cgwSetMEC(body.mec)
                 cy.cgwMapToken('veh', ENTITYID, body.token)
+                cy.cgwClearRequests()
             })
         })
 
@@ -292,10 +310,37 @@ describe('for CAAS', () => {
             })
         })
 
+        it('disocnnects when token expires', ()=> {
+            // get token again to trigger reauthenticate
+            cy.expireToken(SEED.VEH[0]).then(() => {
+                // cy.wait(6000)
+                // // check that caas has revoke token due to reauthentication
+                cy.visit('/showdb')
+                cy.contains(currentToken).parent().children().eq(4)
+                    .invoke('text').should('equal', 'MaximumConnectTime')
+
+                // check that the old token is wiped from cache
+                cy.cgwValidateToken(
+                    'veh',
+                    ENTITYID,
+                    currentToken,
+                    false,
+                ).its('status').should('equal', 403)
+                cy.cgwGetRequests().then((response)=>{
+                    let reqs = response.body.filter(req => Object.keys(req) == "/cgw/v1/disconnect")
+                    expect(reqs).to.have.lengthOf(1)
+                    expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(160)
+                })
+            })
+        })
+
+        // this test will cause the MEC to change to a non-existing one
+        // causing the next disconnection to time out
         it('disconnects using a handover when mec change occurs', ()=> {
             cy.adminListMec(bearerToken, false).then((response) => {
                 // need to find a new cell tower not assigned to current MEC
-                const newMEC = SEED.MEC.filter(mec => mec != assignedMEC)[0]
+                console.log(response.body.mecs)
+                const newMEC = Object.keys(response.body.mecs).filter(mec => mec != assignedMEC)[0]
                 const cellID = response.body.mecs[newMEC].cell[0]
 
                 // need to find subscription ID
@@ -321,34 +366,10 @@ describe('for CAAS', () => {
                         .invoke('text').should('equal', newMEC)
                     cy.cgwGetRequests().then((response)=>{
                         let reqs = response.body.filter(req => Object.keys(req) == "/cgw/v1/disconnect")
-                        expect(reqs).to.have.lengthOf(2)
-                        expect(reqs[1]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(156)
-                        expect(reqs[1]["/cgw/v1/disconnect"]).to.have.property('nextServer').to.equal(newMEC)
+                        expect(reqs).to.have.lengthOf(1)
+                        expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(156)
+                        expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('nextServer').to.equal(newMEC)
                     })
-            })
-        })
-
-        it('disocnnects when token expires', ()=> {
-            // get token again to trigger reauthenticate
-            cy.expireToken(SEED.VEH[0]).then(() => {
-                // cy.wait(6000)
-                // // check that caas has revoke token due to reauthentication
-                cy.visit('/showdb')
-                cy.contains(currentToken).parent().children().eq(4)
-                    .invoke('text').should('equal', 'MaximumConnectTime')
-
-                // check that the old token is wiped from cache
-                cy.cgwValidateToken(
-                    'veh',
-                    ENTITYID,
-                    currentToken,
-                    false,
-                ).its('status').should('equal', 403)
-                cy.cgwGetRequests().then((response)=>{
-                    let reqs = response.body.filter(req => Object.keys(req) == "/cgw/v1/disconnect")
-                    expect(reqs).to.have.lengthOf(1)
-                    expect(reqs[0]["/cgw/v1/disconnect"]).to.have.property('reasonCode').to.equal(169)
-                })
             })
         })
     })

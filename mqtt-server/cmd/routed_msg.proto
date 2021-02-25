@@ -1,0 +1,23 @@
+// protoc -I./ ./routed_msg.proto --go_out=plugins=grpc:. --go_opt=module=github.com/yh742/j2735-decoder/pkg/routedmsgpb
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package routedmsgpb;
+option go_package = "github.com/yh742/j2735-decoder/pkg/routedmsgpb";
+
+message Position {
+  int32 latitude = 1; // in 1/10th microdegrees
+  int32 longitude = 2; // in 1/10th microdegrees
+}
+
+message RoutedMsg {
+  bytes msgBytes = 1;
+  google.protobuf.Timestamp time = 2;
+
+  Position position = 3;
+  int32 customRadius = 4; // only applies to some types of messages (not yet implemented)
+  bool clientCanOverrideRadius = 5;
+
+  //repeated int32 clientIds = ?;  // alternative to specifying "position" - these are the potential clients to receive the message (not yet implemented)
+}

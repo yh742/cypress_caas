@@ -24,6 +24,13 @@ export const SEED = {
     MEC: ['132.197.249.120', '194.0.0.2', '194.0.0.3', '194.0.0.4'],
 }
 
+// don't specify protocol messes up CAAS
+export const CGW_URL = "a8e96b6abbd244ac0abe94d35b807048-1970539593.us-east-2.elb.amazonaws.com"
+export const SCEF_URL = "132.197.249.120:30200/vzmode_monte/subscriptions"
+export const CRS_URL = "3.140.189.249:30200"
+export const MQTT_URL = "localhost:9090"
+// CAAS_URL is specified in the default cypress.json
+
     // Created a http://verizon.sentacaconsulting.com/test/resetdb
     // 	⁃	Reset clears all the tables of all data
     // 	⁃	Also runs initdb which seeds the database
